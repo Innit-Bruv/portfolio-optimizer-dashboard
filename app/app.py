@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from data_handler import load_portfolio, fetch_price_data
-from optimize_portfolio import optimize_portfolio, portfolio_performance
+from optimize_portfolio import optimize_portfolio, portfolio_performance,calculate_efficient_frontier
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -63,24 +63,31 @@ if uploaded_file:
         st.dataframe(opt_df)
 
         # Efficient Frontier
+        # Efficient Frontier
         st.subheader("📊 Efficient Frontier")
-        def simulate_portfolios(num_portfolios=5000):
-            results = np.zeros((3, num_portfolios))
-            for i in range(num_portfolios):
-                weights = np.random.random(len(tickers))
-                weights /= np.sum(weights)
-                ret, vol, sharpe = portfolio_performance(weights, mean_returns, cov_matrix)
-                results[0,i] = ret
-                results[1,i] = vol
-                results[2,i] = sharpe
-            return results
 
-        results = simulate_portfolios()
-        plt.figure(figsize=(10,6))
-        plt.scatter(results[1], results[0], c=results[2], cmap='viridis', alpha=0.7)
-        plt.xlabel('Volatility')
-        plt.ylabel('Return')
-        plt.colorbar(label='Sharpe Ratio')
-        plt.scatter(opt_vol, opt_ret, c='red', s=50, label='Optimized')
+        # Calculate the efficient frontier
+        frontier_results = calculate_efficient_frontier(mean_returns, cov_matrix)
+
+        plt.figure(figsize=(10, 6))
+
+        # Plot the efficient frontier (Volatility vs Return)
+        plt.plot(frontier_results[1], frontier_results[0], 'b--', label='Efficient Frontier')
+
+        # Labels and title
+        plt.xlabel('Volatility (Std. Dev)')
+        plt.ylabel('Expected Returns')
+        plt.title('Efficient Frontier')
+
+        # Plot the optimized Max Sharpe portfolio
+        plt.scatter(opt_vol, opt_ret, c='red', s=50, edgecolors='black', label='Max Sharpe Portfolio')
+
+        # Plot the original portfolio
+        plt.scatter(real_vol, real_ret, c='blue', s=50, edgecolors='black', label='Original Portfolio')
+
+        # Show legend
         plt.legend()
+
+        # Display in Streamlit
         st.pyplot(plt)
+

@@ -56,3 +56,41 @@ def optimize_portfolio(returns_df, method='max_sharpe', risk_free_rate=0.0):
         raise RuntimeError("Optimization failed: " + result.message)
 
     return result.x  # Optimal weights
+
+import numpy as np
+from scipy.optimize import minimize
+
+def calculate_efficient_frontier(mean_returns, cov_matrix, num_portfolios=100):
+    """
+    Calculates the efficient frontier by finding the minimum volatility
+    for a range of target returns.
+    """
+    results = np.zeros((3, num_portfolios))
+    target_returns = np.linspace(mean_returns.min(), mean_returns.max(), num_portfolios)
+
+    num_assets = len(mean_returns)
+    bounds = tuple((0, 1) for _ in range(num_assets))
+    initial_guess = np.array([1.0 / num_assets] * num_assets)
+
+    for i, target_return in enumerate(target_returns):
+        # Constraints: sum of weights is 1, and portfolio return equals the target return
+        constraints = (
+            {'type': 'eq', 'fun': lambda x: np.sum(x) - 1},
+            {'type': 'eq', 'fun': lambda x: np.dot(x, mean_returns) - target_return}
+        )
+
+        # Objective: minimize volatility
+        def objective(w):
+            return np.sqrt(np.dot(w.T, np.dot(cov_matrix, w)))
+
+        result = minimize(objective, initial_guess, method='SLSQP', bounds=bounds, constraints=constraints)
+
+        if result.success:
+            portfolio_vol = result.fun
+            results[0, i] = target_return
+            results[1, i] = portfolio_vol
+            # Sharpe for this point on the frontier (assuming risk-free rate = 0)
+            results[2, i] = (target_return - 0.0) / portfolio_vol
+
+    # Filter out any failed optimizations (vol = 0)
+    return results[:, results[1] > 0]
